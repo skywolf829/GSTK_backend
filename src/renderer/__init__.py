@@ -286,8 +286,9 @@ class Renderer():
 
     def render(self):
         if(self.renderer_enabled):
-            if(self.editor_enabled):
-                with self.lock:
+            with self.lock:
+                if(self.editor_enabled):
+               
                     rgba = np.asarray(self.canvas.draw())
                     
                     # Get the blender, which has a reference to the depth dexture
@@ -309,11 +310,11 @@ class Renderer():
                     ).reshape(t.height, t.width)
                     rgba_buffer = torch.tensor(rgba, dtype=torch.uint8, device=self.settings.device)
                     depth_buffer = torch.tensor(depth, dtype=torch.float32, device=self.settings.device)#*2 - 1
-            else:
-                rgba_buffer = None
-                depth_buffer = None
-                self.selection_mask = None
-                self.controller_tick()
+                else:
+                    rgba_buffer = None
+                    depth_buffer = None
+                    self.selection_mask = None
+                    self.controller_tick()
 
             if(self.model.initialized):
                 render_package = self.model.render(

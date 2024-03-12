@@ -45,13 +45,16 @@ class GaussianModel:
             self.server_controller.subscribe_to_messages(
                 'updateModelSettings', 
                 self.handle_model_settings)
-            self.server_controller.subscribe_to_messages(
-                'saveModel', 
-                self.handle_save_model)
             
             self.server_controller.subscribe_to_messages(
+                'saveModel', 
+                self.handle_save_model)            
+            self.server_controller.subscribe_to_messages(
                 'loadModel', 
-                self.handle_load_model)
+                self.handle_load_model)       
+            self.server_controller.subscribe_to_messages(
+                'requestAvailableModels', 
+                self.request_available_models)
             
             self.server_controller.subscribe_to_messages(
                 "initFromPCD", 
@@ -102,7 +105,7 @@ class GaussianModel:
 
     async def handle_save_model(self, data, websocket):
         path = os.path.join(os.path.abspath(__file__), "..", "..", "..", "savedModels")
-        name = data['name']
+        name = data['modelPath']
         if(".ply" not in name[-4:]):
             name = name + ".ply"
         full_path = os.path.abspath(os.path.join(path, name))
@@ -121,16 +124,16 @@ class GaussianModel:
     
     async def handle_load_model(self, data, websocket):
         path = os.path.join(os.path.abspath(__file__), "..", "..", "..", "savedModels")
-        name = data['name']
+        name = data['modelPath']
         if not os.path.exists(os.path.join(path, name)):
-            path2 = name + ".ply"
-            if not os.path.exists(os.path.join(path2, name)):
+            name2 = name + ".ply"
+            if not os.path.exists(os.path.join(path, name2)):
                 data = {"other" : {"error": f"Location doesn't exist: {path}"}}
                 await self.server_controller.send_error_message("Model error", 
                     f"Cannot load model from {path}, does not exist.")
                 return
             else:
-                path = path2
+                name = name2
 
         full_path = os.path.join(path, name)
         try:
@@ -147,6 +150,17 @@ class GaussianModel:
             await self.server_controller.send_error_message("Model error", 
                 f"Error loading the model.")
             return
+
+    async def request_available_models(self, data, websocket):
+        path = os.path.join(os.path.abspath(__file__), "..", "..", "..", "savedModels")
+        availableModels = os.listdir(path)
+        message = {
+            "type": "availableModels",
+            "data" :{
+                "models": availableModels
+            }
+        }
+        await self.server_controller.broadcast(message)
 
     def on_settings_update(self, new_settings):
 

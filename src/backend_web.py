@@ -39,14 +39,15 @@ class ServerController:
         await start_server
         await self.start_main_loop()
 
-    async def handle_connection(self, websocket, path):
-        print(f"Connection received: {path}")
+    async def handle_connection(self, websocket : websockets.WebSocketServerProtocol, path):
+        print(f"Connection received: {websocket.remote_address}")
         self.active_connections.append(websocket)
         try:
             async for message in websocket:
                 await self.handle_message(message, websocket)
         finally:
             self.active_connections.remove(websocket)
+            print(f"Disconnected a client: {websocket.remote_address}")
 
     def subscribe_to_messages(self, message_type, handler):
         if message_type not in self.message_subscribers:
