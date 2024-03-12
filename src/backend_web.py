@@ -117,7 +117,7 @@ class ServerController:
             # Reporting
             num_ims += 1
             if time.time() - t > 1:
-                print(f"FPS: {num_ims / (time.time() - t): 0.02f}")
+                print(f"Train+render loops per second: {num_ims / (time.time() - t): 0.02f}", end='\r')
                 t = time.time()
                 num_ims = 0
                 await self.broadcast(train_step_data)
