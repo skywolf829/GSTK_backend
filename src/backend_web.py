@@ -14,7 +14,7 @@ from renderer import Renderer
 from trainer import Trainer
 from settings import Settings
 import torch
-
+from tqdm.autonotebook import tqdm
 
 class ServerController:
     def __init__(self, ip, port):
@@ -82,6 +82,7 @@ class ServerController:
     async def main_loop(self, executor):
         num_ims = 0
         t = time.time()
+        statusbar = tqdm(ncols=0, bar_format='')
         while True:
             # 1. Rendering
             img_jpg = await asyncio.get_event_loop().run_in_executor(executor, 
@@ -117,7 +118,9 @@ class ServerController:
             # Reporting
             num_ims += 1
             if time.time() - t > 1:
-                print(f"Train+render loops per second: {num_ims / (time.time() - t): 0.02f}", end='\r', flush=True)
+                status = f"Train+render loops per second: {num_ims / (time.time() - t): 0.02f}"
+                #print(status, end='\r', flush=True)
+                statusbar.set_description(status)
                 t = time.time()
                 num_ims = 0
                 await self.broadcast(train_step_data)
