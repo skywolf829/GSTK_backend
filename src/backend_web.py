@@ -35,6 +35,7 @@ class ServerController:
         self.model.create_from_random_pcd()
 
     async def start_server(self):
+        print(f"Starting server at {self.ip}:{self.port}")
         start_server = websockets.serve(self.handle_connection, self.ip, self.port)
         await start_server
         await self.start_main_loop()
