@@ -1,6 +1,6 @@
 # todo: if we have per-vertex coloring, we can paint on the mesh instead :D
 
-from wgpu.gui.glfw import WgpuCanvas, run
+from wgpu.gui.glfw import run
 from wgpu.gui.offscreen import WgpuCanvas as WgpuCanvas_offscreen
 from pygfx.renderers.wgpu._blender import *
 import pygfx as gfx
@@ -72,7 +72,8 @@ class Renderer():
             if(self.offscreen):
                 self.canvas = WgpuCanvas_offscreen()
             else:
-                self.canvas = WgpuCanvas()
+                print("Error: Only offscreen supported")
+                quit()
             self.canvas._max_fps = 500
             self.canvas._vsync = False
             self.renderer = gfx.renderers.WgpuRenderer(

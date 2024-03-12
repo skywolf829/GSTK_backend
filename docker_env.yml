@@ -13,8 +13,4 @@ dependencies:
   - plyfile
   - pip:
     - simplejpeg
-    - pygfx
-    - glfw
     - websockets
-    - src/submodules/CUDA_renderer
-    - src/submodules/CUDA_knn
