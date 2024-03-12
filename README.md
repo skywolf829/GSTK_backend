@@ -1,5 +1,6 @@
 # GSTK backend
-Backend code for the gaussian model, training, datasets, and communicating with GUI.
+Backend code for [GSTK](https://docs.anaconda.com/free/miniconda/).
+Contains the gaussian model, training, datasets, and communicating with GUI.
 
 # Installation
 
@@ -7,7 +8,7 @@ This section covers the installation procedure for just the backend code.
 Your system should have a CUDA capable graphics card.
 
 ## Prerequisites
-- [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads).
+- [CUDA Toolkit](https://skywolf829.github.io/GSTK/).
 We have tested with v11.8 on Windows 11.
 Ensure the environment's `PATH` variable is updated to include the `bin` folder of the installed CUDA toolkit.
 - [Conda](https://docs.anaconda.com/free/miniconda/) package manager.
