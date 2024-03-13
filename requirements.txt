@@ -9,5 +9,3 @@ pygfx
 glfw
 websockets
 pyngrok
-src/submodules/CUDA_renderer
-src/submodules/CUDA_knn
