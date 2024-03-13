@@ -51,17 +51,30 @@ If you are running the server on the same machine you plan on viewing/editing on
 python src/backend.py
 ```
 
+Use "localhost" and the default port of "10789" to connect on the website.
+
 ## Running for access from devices on your local network
+
+CURRENTLY NOT SUPPORTED.
+Would require SSL certificates for secure connection.
+Ignore the following instructions since in the end it wont work anyway (unless you run the webserver locally).
+
 If you plan on running the server on one machine, and viewing the web browser on another (your laptop, another PC, etc), then you'll need to find your LAN IP address.
 
 On Windows, you can type `ipconfig` into your console.
-Look for your LAN address - it probably looks something like this:
+Look for your LAN address - it probably looks something like this and typically is 192.168.1.x or 10.0.0.x:
 
-![LAN](figures/LAN.jpg) 
+![LAN](figures/LAN.jpg)
 
-If you plan on running this server on a PC somewhere, and then accessing it from a laptop elsewhere
-If your server is remote, find the servers public IP address and ensure a port is forwarded properly.
-Then, use that specific IP and port for connection.
+The IPv4 here is your local IP address, which other devices on the same network (connected to the same router) can access. 
+To start my server such that others on the network can access it in my example, I'd use:
+
+```
+python src/backend.py --ip 192.168.1.176
+```
+
+You may get a Windows popup asking if you'd like to make this point available from other devices. 
+Click yes, and then you can do your viewing from another
 
 # Known Issues
 

@@ -15,13 +15,12 @@ from trainer import Trainer
 from settings import Settings
 import torch
 from tqdm.autonotebook import tqdm
-from pyngrok import ngrok
+import ssl
 
 class ServerController:
-    def __init__(self, ip, port, use_ngrok=False):
+    def __init__(self, ip, port):
         self.ip = ip
         self.port = port
-        self.use_ngrok = use_ngrok
         self.public_ip = None
         self.public_port = None
         self.active_connections = []
@@ -39,16 +38,9 @@ class ServerController:
         self.model.create_from_random_pcd()
 
     async def start_server(self):
-        print(f"Starting server at {self.ip}:{self.port}")
-        start_server = websockets.serve(self.handle_connection, self.ip, self.port)
-        if(self.use_ngrok):
-            print("Setting up ngrok...")
-            ngrok.set_auth_token("2dbZ6MARkIKCKAqqTuC8Npi0Nlx_5BnCDp6VCRMaZi5ZEurTz")
-            public_url = ngrok.connect(f"{self.ip}:{self.port}", "tcp").public_url
-
-            print(public_url)
-            self.public_ip = public_url.split('//')[1].split(":")[0]
-            self.public_port = public_url.split('//')[1].split(":")[1]
+       
+        start_server = websockets.serve(self.handle_connection, 
+                                        self.ip, self.port)
         await start_server
         print("Starting main loop")
         await self.main_loop(self.executor)
@@ -148,8 +140,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Backend server script")
     parser.add_argument('--ip', type=str, default="127.0.0.1")
     parser.add_argument('--port', type=int, default=10789)
-    parser.add_argument('-use_ngrok', action='store_true')
     args = parser.parse_args()
-    controller = ServerController(args.ip, args.port, args.use_ngrok)
+    controller = ServerController(args.ip, args.port)
     asyncio.run(controller.start_server())
  
