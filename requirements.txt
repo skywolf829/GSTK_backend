@@ -1,0 +1,13 @@
+--find-links https://download.pytorch.org/whl/cu121
+torch 
+torchvision 
+torchaudio
+tqdm
+plyfile
+simplejpeg
+pygfx
+glfw
+websockets
+pyngrok
+src/submodules/CUDA_renderer
+src/submodules/CUDA_knn

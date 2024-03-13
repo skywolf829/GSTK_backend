@@ -15,11 +15,15 @@ from trainer import Trainer
 from settings import Settings
 import torch
 from tqdm.autonotebook import tqdm
+from pyngrok import ngrok
 
 class ServerController:
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, use_ngrok=False):
         self.ip = ip
         self.port = port
+        self.use_ngrok = use_ngrok
+        self.public_ip = None
+        self.public_port = None
         self.active_connections = []
         self.executor = ThreadPoolExecutor()
         self.message_subscribers = {}
@@ -37,9 +41,18 @@ class ServerController:
     async def start_server(self):
         print(f"Starting server at {self.ip}:{self.port}")
         start_server = websockets.serve(self.handle_connection, self.ip, self.port)
-        await start_server
-        await self.start_main_loop()
+        if(self.use_ngrok):
+            print("Setting up ngrok...")
+            ngrok.set_auth_token("2dbZ6MARkIKCKAqqTuC8Npi0Nlx_5BnCDp6VCRMaZi5ZEurTz")
+            public_url = ngrok.connect(f"{self.ip}:{self.port}", "tcp").public_url
 
+            print(public_url)
+            self.public_ip = public_url.split('//')[1].split(":")[0]
+            self.public_port = public_url.split('//')[1].split(":")[1]
+        await start_server
+        print("Starting main loop")
+        await self.main_loop(self.executor)
+            
     async def handle_connection(self, websocket : websockets.WebSocketServerProtocol, path):
         print(f"Connection received: {websocket.remote_address}")
         self.active_connections.append(websocket)
@@ -76,10 +89,7 @@ class ServerController:
                     "body": body
                 }                
             })
-        
-    async def start_main_loop(self):
-        await self.main_loop(self.executor)
- 
+  
     async def main_loop(self, executor):
         num_ims = 0
         t = time.time()
@@ -119,7 +129,12 @@ class ServerController:
             # Reporting
             num_ims += 1
             if time.time() - t > 1:
-                status = f"Train+render loops per second: {num_ims / (time.time() - t): 0.02f}"
+                status = ""
+                if(self.public_ip is not None):
+                    status = f"Served at {self.public_ip}:{self.public_port}"
+                else:
+                    status = f"Served at {self.ip}:{self.port}"
+                status = f"{status} \t | \t Train+render loops per second: {num_ims / (time.time() - t): 0.02f}"
                 #print(status, end='\r', flush=True)
                 statusbar.set_description(status)
                 t = time.time()
@@ -133,8 +148,8 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Backend server script")
     parser.add_argument('--ip', type=str, default="127.0.0.1")
     parser.add_argument('--port', type=int, default=10789)
+    parser.add_argument('-use_ngrok', action='store_true')
     args = parser.parse_args()
-
-    controller = ServerController(args.ip, args.port)
+    controller = ServerController(args.ip, args.port, args.use_ngrok)
     asyncio.run(controller.start_server())
  
