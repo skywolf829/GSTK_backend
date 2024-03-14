@@ -73,6 +73,18 @@ class Trainer:
             self.training = False
         elif self.dataset.loaded and self.initialized and self.model.initialized:
             self.training = True
+        if(self.server_controller is not None):
+            train_step_data = {
+                "type": "trainingState",
+                "data": {
+                    "iteration": self._iteration,
+                    "totalIterations": self.settings.iterations,
+                    "loss": self.ema_loss,
+                    "training": self.training,
+                    "stepTime": self.average_train_step_ms * 1000.
+                }
+            }
+            await self.server_controller.broadcast(train_step_data)
 
     async def handle_train_settings(self, data, websocket):
         # Just load all key data to settings

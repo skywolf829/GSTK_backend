@@ -48,6 +48,7 @@ class ServerController:
     async def handle_connection(self, websocket : websockets.WebSocketServerProtocol, path):
         print(f"Connection received: {websocket.remote_address}")
         self.active_connections.append(websocket)
+        await self.send_state_update()
         try:
             async for message in websocket:
                 await self.handle_message(message, websocket)
@@ -104,17 +105,6 @@ class ServerController:
             training, iteration, iterations, loss, \
                 average_train_step_ms = await asyncio.get_event_loop().run_in_executor(executor, 
                     self.trainer.step)
-            
-            train_step_data = {
-                "type": "trainingState",
-                "data": {
-                    "iteration": iteration,
-                    "totalIterations": iterations,
-                    "loss": loss,
-                    "training": training,
-                    "stepTime": average_train_step_ms * 1000.
-                }
-            }
             if( not self.renderer.renderer_enabled and not self.trainer.training):
                 time.sleep(0.5)
 
@@ -126,13 +116,34 @@ class ServerController:
                     status = f"Served at {self.public_ip}:{self.public_port}"
                 else:
                     status = f"Served at {self.ip}:{self.port}"
-                status = f"{status} \t | \t Train+render loops per second: {num_ims / (time.time() - t): 0.02f}"
+                fps = num_ims / (time.time() - t)
+                status = f"{status} \t | \t Train+render loops per second: {fps: 0.02f}"
                 #print(status, end='\r', flush=True)
                 statusbar.set_description(status)
                 t = time.time()
                 num_ims = 0
+                
+                render_speed_data = {
+                    "type": "rendererFPS",
+                    "data": {
+                        "fps": fps
+                    }
+                }
+                await self.broadcast(render_speed_data)
+                train_step_data = {
+                    "type": "trainingState",
+                    "data": {
+                        "iteration": iteration,
+                        "totalIterations": iterations,
+                        "loss": loss,
+                        "training": training,
+                        "stepTime": average_train_step_ms * 1000.
+                    }
+                }
                 await self.broadcast(train_step_data)
     
+    async def send_state_update(self):
+        await self.dataset.send_state()
 
 
 if __name__ == "__main__":

@@ -36,7 +36,10 @@ class Dataset:
         self.server_controller = server_controller
         self.loading = False
         self.loaded = False
-        
+        self.colmap_path = ""
+        self.imagemagick_path = ""
+        self.available_datasets = self.get_available_datasets()
+
         if(self.server_controller is not None):            
             self.server_controller.subscribe_to_messages(
                 'datasetInitialize', 
@@ -94,6 +97,11 @@ class Dataset:
         self.loaded = True
         print("Dataset loaded")
 
+    def get_available_datasets(self):
+        datasets_path = os.path.abspath(os.path.join(os.path.abspath(__file__), 
+                        "..", "..", "..", "data"))
+        return os.listdir(datasets_path)
+
     def __getitem__(self, idx, scale=1.0):
         return self.train_cameras[scale][idx % len(self.train_cameras[scale])]
 
@@ -102,13 +110,34 @@ class Dataset:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
-        
+
+    async def send_state(self):
+        self.available_datasets = self.get_available_datasets()
+        if self.server_controller is not None:
+            message = {
+                "type": "datasetState",
+                "data": {
+                    "datasetPath": self.settings.dataset_path,
+                    "datasetDevice": self.settings.data_device,
+                    "colmapPath": self.colmap_path,
+                    "imagemagickPath": self.imagemagick_path,
+                    "loading": self.loading,
+                    "loaded": self.loaded,
+                    "availableDatasets": self.available_datasets
+                }
+            }
+            await self.server_controller.broadcast(message)
+
     async def initialize_dataset(self, data, websocket):
         if self.loading:
             return
         self.loading = True
 
         # relative dataset path
+        
+        self.colmap_path = data['colmap_path']
+        self.imagemagick_path = data['imagemagick_path']
+
         datasets_path = os.path.abspath(os.path.join(os.path.abspath(__file__), 
                         "..", "..", "..", "data"))
         data['dataset_path'] = os.path.join(datasets_path, data['dataset_path'])
@@ -140,11 +169,13 @@ class Dataset:
         try:
             await self.server_controller.broadcast(
                 {
-                    "type": "loading", 
+                    "type": "datasetLoading", 
                     "data": {    
                         "loaded": False,
                         "header": "Dataset loading...",
-                        "message": "Loading dataset from storage..."
+                        "message": "Loading dataset from storage...",
+                        "percent": 0,
+                        "totalPercent": 0
                     }
                 }
             )
@@ -155,11 +186,13 @@ class Dataset:
             # Doesn't recognize dataset, use COLMAP to turn it into a dataset from images
             await self.server_controller.broadcast(
                 {
-                    "type": "loading", 
+                    "type": "datasetLoading", 
                     "data": {    
                         "loaded": False,
                         "header": "Dataset loading...",
-                        "message": "Attempting to create dataset from COLMAP..."
+                        "message": "Attempting to create dataset from COLMAP...",
+                        "percent": 0,
+                        "totalPercent": 0
                     }
                 }
             )
@@ -187,11 +220,13 @@ class Dataset:
                 try:
                     await self.server_controller.broadcast(
                         {
-                            "type": "loading", 
+                            "type": "datasetLoading", 
                             "data": {    
                                 "loaded": False,
                                 "header": "Dataset loading...",
-                                "message": "COLMAP complete, loading dataset..."
+                                "message": "COLMAP complete, loading dataset...",
+                                "percent": 75,
+                                "totalPercent": 75
                             }
                         }
                     )
@@ -209,7 +244,7 @@ class Dataset:
                 
         await self.server_controller.broadcast(
             {
-                "type": "loading", 
+                "type": "datasetLoading", 
                 "data": {    
                     "loaded": True
                 }

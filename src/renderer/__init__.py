@@ -29,9 +29,10 @@ class Renderer():
         self.edit_selected = True
         self.selection_mask = None
 
+        self.resolution = [600, 480]
         self.gaussian_size = 1.0
         self.selection_transparency = 0.05
-        
+        self.jpeg_quality = 85        
         self.resolution_scaling = 1.0
 
         self.server_controller = server_controller
@@ -241,14 +242,15 @@ class Renderer():
         self.gaussian_size = data['gaussian_size']
         self.selection_transparency = data['selection_transparency']
         self.resolution_scaling = data['resolution_scaling']
+        self.jpeg_quality = int(data['jpeg_quality'])
 
-        new_width = self.canvas.get_logical_size()[0]*self.resolution_scaling
-        new_height = self.canvas.get_logical_size()[1]*self.resolution_scaling
-        self.resize(new_width, new_height)
+        self.resize(self.resolution[0] * self.resolution_scaling, 
+                    self.resolution[1] * self.resolution_scaling)
 
     async def handle_resolution_change(self, data, websocket):
-        self.resize(data['width'] * self.resolution_scaling, 
-                    data['height'] * self.resolution_scaling)
+        self.resolution = [data['width'], data['height']]
+        self.resize(self.resolution[0] * self.resolution_scaling, 
+                    self.resolution[1] * self.resolution_scaling)
 
     async def handle_editor_enabled(self, data, websocket):
         self.editor_enabled = data['enabled']
@@ -329,7 +331,7 @@ class Renderer():
             else:
                 img = np.zeros([16, 16, 4], dtype=np.uint8)
 
-            img_jpeg = simplejpeg.encode_jpeg(img, quality=85, fastdct=True)
+            img_jpeg = simplejpeg.encode_jpeg(img, quality=self.jpeg_quality, fastdct=True)
             return img_jpeg
         
         return None

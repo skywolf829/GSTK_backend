@@ -139,7 +139,7 @@ class GaussianModel:
         try:
             self.load_ply(full_path)
             self.server_controller.trainer.set_model(self)
-            self.server_controller.broadcast({
+            await self.server_controller.broadcast({
             "type": "popup",
             "data": {
                 "header": "Success",
