@@ -61,8 +61,11 @@ class Renderer():
                 self.simulate_scroll)
             
             self.server_controller.subscribe_to_messages(
-                'editorState', 
-                self.handle_editor_enabled)
+                'editorButtonClick', 
+                self.handle_editor_button_clicked)
+            self.server_controller.subscribe_to_messages(
+                'processEdit', 
+                self.handle_edit)
             
         self.init_renderer()
         self.add_selector()
@@ -252,10 +255,31 @@ class Renderer():
         self.resize(self.resolution[0] * self.resolution_scaling, 
                     self.resolution[1] * self.resolution_scaling)
 
-    async def handle_editor_enabled(self, data, websocket):
-        self.editor_enabled = data['enabled']
+    async def handle_editor_button_clicked(self, data, websocket):
+
+        button_selected = data['button_clicked']
+        if(button_selected == self.edit_selected):
+            self.edit_selected = ''
+            self.editor_enabled = False
+        else:
+            self.edit_selected = button_selected
+            self.editor_enabled = button_selected != '' 
+        await self.send_edit_state()
+
+    async def send_edit_state(self):
+        message = {
+            "type": "editorState",
+            "data": {
+                "editorEnabled": self.editor_enabled,
+                "editType": self.edit_selected
+            }
+        }
+        await self.server_controller.broadcast(message)
+
+    async def handle_edit(self, data, websocket):
         if self.editor_enabled:
-            self.edit_selected = data['edit_selected']
+            self.edit_selected = data['edit_type']
+            edit_data = data['payload']
 
     def simulate_key_down(self, key):
         ev = {
@@ -285,6 +309,25 @@ class Renderer():
     
     def get_inverse_projection_matrix(self):
         return self.camera.projection_matrix_inverse
+
+    async def send_state(self):
+        if(self.server_controller is not None):
+            self.resolution = [600, 480]
+            self.gaussian_size = 1.0
+            self.selection_transparency = 0.05
+            self.jpeg_quality = 85        
+            self.resolution_scaling = 1.0
+            message = {
+                "type": "rendererState",
+                "data":{
+                    "gaussian_size": self.gaussian_size,
+                    "selection_transparency": self.selection_transparency,
+                    "jpeg_quality": self.jpeg_quality,
+                    "resolution_scaling": self.resolution_scaling
+                }
+            }
+            await self.server_controller.broadcast(message)
+            await self.send_edit_state()
 
     def render(self):
         if(self.renderer_enabled):

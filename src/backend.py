@@ -72,7 +72,11 @@ class ServerController:
     async def broadcast(self, data):
         if not isinstance(data, str) and not isinstance(data, bytes):
             data = json.dumps(data)
-        await asyncio.gather(*[ws.send(data) for ws in self.active_connections])
+        try:
+            await asyncio.gather(*[ws.send(data) for ws in self.active_connections])
+        except Exception as e:
+            #print("Client disconnected while sending a message.")
+            pass
 
     async def send_error_message(self, header, body):
         await self.broadcast({
@@ -136,7 +140,6 @@ class ServerController:
                         "iteration": iteration,
                         "totalIterations": iterations,
                         "loss": loss,
-                        "training": training,
                         "stepTime": average_train_step_ms * 1000.
                     }
                 }
@@ -144,6 +147,8 @@ class ServerController:
     
     async def send_state_update(self):
         await self.dataset.send_state()
+        await self.renderer.send_state()
+        await self.trainer.send_state()
 
 
 if __name__ == "__main__":

@@ -75,13 +75,9 @@ class Trainer:
             self.training = True
         if(self.server_controller is not None):
             train_step_data = {
-                "type": "trainingState",
+                "type": "isTraining",
                 "data": {
-                    "iteration": self._iteration,
-                    "totalIterations": self.settings.iterations,
-                    "loss": self.ema_loss,
                     "training": self.training,
-                    "stepTime": self.average_train_step_ms * 1000.
                 }
             }
             await self.server_controller.broadcast(train_step_data)
@@ -371,6 +367,31 @@ class Trainer:
         return self.training, self._iteration, self.settings.iterations, self.ema_loss, \
                 self.average_train_step_ms
     
+    async def send_state(self):
+        if self.server_controller is not None:
+            message = {
+                "type": "trainingSettingsState",
+                "data": {
+                    "total_iterations": self.settings.iterations,
+                    "position_lr_init": self.settings.position_lr_init,
+                    "position_lr_final": self.settings.position_lr_final,
+                    "position_lr_delay_mult": self.settings.position_lr_delay_mult,
+                    "position_lr_max_steps": self.settings.position_lr_max_steps,
+                    "feature_lr": self.settings.feature_lr,
+                    "opacity_lr": self.settings.opacity_lr,
+                    "scaling_lr": self.settings.scaling_lr,
+                    "rotation_lr": self.settings.rotation_lr,
+                    "percent_dense": self.settings.percent_dense,
+                    "lambda_dssim": self.settings.lambda_dssim,
+                    "densification_interval": self.settings.densification_interval,
+                    "opacity_reset_interval": self.settings.opacity_reset_interval,
+                    "densify_from_iter": self.settings.densify_from_iter,
+                    "densify_until_iter": self.settings.densify_until_iter,
+                    "densify_grad_threshold": self.settings.densify_grad_threshold
+                }
+            }
+            await self.server_controller.broadcast(message)
+
     def train_all(self):
         t = tqdm(range(self._iteration, self.settings.iterations))
         for _ in t:
