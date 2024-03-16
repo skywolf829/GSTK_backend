@@ -360,6 +360,8 @@ class Trainer:
             self.loss_values_each_iter.append(loss.item())
 
             self._iteration += 1
+            if(self._iteration == self.settings.iterations):
+                self.training = False
             self.last_loss = loss.item()
             step_time = time.time()-t0
             self.average_train_step_ms = 0.8*self.average_train_step_ms + step_time * 0.2

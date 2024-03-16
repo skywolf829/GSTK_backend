@@ -12,6 +12,7 @@ import torch
 from dataset.cameras import cam_from_gfx
 import simplejpeg
 from threading import Lock
+from edits import import_and_read_keys
 
 class Renderer():
     def __init__(self, model, settings, offscreen=True, server_controller=None):
@@ -34,9 +35,13 @@ class Renderer():
         self.selection_transparency = 0.05
         self.jpeg_quality = 85        
         self.resolution_scaling = 1.0
+        self.max_framerate = 30 
+
+        self.last_render_time = None
 
         self.server_controller = server_controller
         if(self.server_controller is not None):
+            self.server_controller.set_max_render_fps(self.max_framerate)
             self.server_controller.subscribe_to_messages(
                 'updateRendererSettings', 
                 self.handle_render_settings)
@@ -70,6 +75,8 @@ class Renderer():
         self.init_renderer()
         self.add_selector()
         self.activate_selector()
+
+        import_and_read_keys()
 
     def init_renderer(self):
         with self.lock:
@@ -246,6 +253,8 @@ class Renderer():
         self.selection_transparency = data['selection_transparency']
         self.resolution_scaling = data['resolution_scaling']
         self.jpeg_quality = int(data['jpeg_quality'])
+        self.max_framerate = min(max(0, int(data['max_framerate'])), 240)        
+        self.server_controller.set_max_render_fps(self.max_framerate)
 
         self.resize(self.resolution[0] * self.resolution_scaling, 
                     self.resolution[1] * self.resolution_scaling)
@@ -312,18 +321,16 @@ class Renderer():
 
     async def send_state(self):
         if(self.server_controller is not None):
-            self.resolution = [600, 480]
-            self.gaussian_size = 1.0
-            self.selection_transparency = 0.05
-            self.jpeg_quality = 85        
-            self.resolution_scaling = 1.0
             message = {
                 "type": "rendererState",
                 "data":{
                     "gaussian_size": self.gaussian_size,
+                    "fov": self.camera.fov,
                     "selection_transparency": self.selection_transparency,
                     "jpeg_quality": self.jpeg_quality,
-                    "resolution_scaling": self.resolution_scaling
+                    "resolution_scaling": self.resolution_scaling,
+                    "max_framerate": self.max_framerate,
+                    "renderer_enabled": self.renderer_enabled
                 }
             }
             await self.server_controller.broadcast(message)
@@ -333,28 +340,30 @@ class Renderer():
         if(self.renderer_enabled):
             with self.lock:
                 if(self.editor_enabled):
-               
-                    rgba = np.asarray(self.canvas.draw())
-                    
-                    # Get the blender, which has a reference to the depth dexture
-                    b : Ordered2FragmentBlender = self.renderer._blender
-                    # Get the GPUTexture from the final pass
-                    t : GPUTexture = b.get_depth_attachment(b.get_pass_count()-1)['view'].texture 
-                    # Grab the canvas's GPUDevice through the context to grab the queue instance
-                    q : wgpu.GPUQueue = self.canvas.get_context()._config['device'].queue
-                    # Get the number of bytes per pixel (generally 4 bytes for 32-bit float depth)
-                    bytes_per_element = int(t._nbytes / (t.width*t.height))
-                    
-                    # Use the queue to read the texture to a memoryview, and grab it with numpy
-                    # Reshape it at the end not to t.size, but height x width.
-                    depth = np.frombuffer(
-                        q.read_texture(
-                            {"texture": t, "origin":(0,0,0), "mip_level": 0},
-                            {"offset": 0, "bytes_per_row": bytes_per_element*t.width, "rows_per_image": t.height},
-                        t.size), dtype=np.float32
-                    ).reshape(t.height, t.width)
-                    rgba_buffer = torch.tensor(rgba, dtype=torch.uint8, device=self.settings.device)
-                    depth_buffer = torch.tensor(depth, dtype=torch.float32, device=self.settings.device)#*2 - 1
+                    try:
+                        rgba = np.asarray(self.canvas.draw())
+                        
+                        # Get the blender, which has a reference to the depth dexture
+                        b : Ordered2FragmentBlender = self.renderer._blender
+                        # Get the GPUTexture from the final pass
+                        t : GPUTexture = b.get_depth_attachment(b.get_pass_count()-1)['view'].texture 
+                        # Grab the canvas's GPUDevice through the context to grab the queue instance
+                        q : wgpu.GPUQueue = self.canvas.get_context()._config['device'].queue
+                        # Get the number of bytes per pixel (generally 4 bytes for 32-bit float depth)
+                        bytes_per_element = int(t._nbytes / (t.width*t.height))
+                        
+                        # Use the queue to read the texture to a memoryview, and grab it with numpy
+                        # Reshape it at the end not to t.size, but height x width.
+                        depth = np.frombuffer(
+                            q.read_texture(
+                                {"texture": t, "origin":(0,0,0), "mip_level": 0},
+                                {"offset": 0, "bytes_per_row": bytes_per_element*t.width, "rows_per_image": t.height},
+                            t.size), dtype=np.float32
+                        ).reshape(t.height, t.width)
+                        rgba_buffer = torch.tensor(rgba, dtype=torch.uint8, device=self.settings.device)
+                        depth_buffer = torch.tensor(depth, dtype=torch.float32, device=self.settings.device)#*2 - 1
+                    except:
+                        print("Error in render caught, fix bug please.")
                 else:
                     rgba_buffer = None
                     depth_buffer = None
@@ -375,6 +384,7 @@ class Renderer():
                 img = np.zeros([16, 16, 4], dtype=np.uint8)
 
             img_jpeg = simplejpeg.encode_jpeg(img, quality=self.jpeg_quality, fastdct=True)
+
             return img_jpeg
         
         return None
