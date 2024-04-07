@@ -1,23 +1,21 @@
 import torch
-import numpy as np
 from dataset import Dataset
 from model import GaussianModel
 from renderer import Renderer
 from trainer import Trainer
 from settings import Settings
-from utils.sh_utils import RGB2SH
 from edits import EditCommand
 
 class Remove_Edit(EditCommand):
+    key = "removePoints"
+    use_selection_mask = True
+    
     def __init__(self, model: GaussianModel, renderer: Renderer, dataset: Dataset, trainer: Trainer, settings : Settings):
         super().__init__(model, renderer, dataset, trainer, settings)
 
         self.remove_pct = 100
-        self.redistribute = True
         self.invert_selection = False
         
-        self.key = "removePoints"
-
     def undo(self):
         if(self.completed):
             mask = torch.zeros([self.model.get_num_gaussians], dtype=torch.bool, device=self.settings.device)
@@ -27,10 +25,9 @@ class Remove_Edit(EditCommand):
 
     def execute(self, payload):
         self.remove_pct = payload['removePercent']
-        self.redistribute = payload['redistribute']
         self.invert_selection = payload['invertSelection']
 
-        mask = self.primitive_renderer.get_selection_mask(self.model.get_xyz).type(torch.bool)
+        mask = self.renderer.get_selection_mask(self.model.get_xyz).type(torch.bool)
         if(self.remove_pct == 100):            
             if(self.invert_selection):
                 mask = ~mask

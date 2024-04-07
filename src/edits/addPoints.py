@@ -9,14 +9,15 @@ from utils.sh_utils import RGB2SH
 from edits import EditCommand
 
 class Add_Edit(EditCommand):
+    key = "addPoints"
+    use_selection_mask = False
+
     def __init__(self, model: GaussianModel, renderer: Renderer, dataset: Dataset, trainer: Trainer, settings : Settings):
         super().__init__(model, renderer, dataset, trainer, settings)
 
         self.num_points = 0
         self.dist_type = ""
         
-        self.key = "addPoints"
-
     def undo(self):
         if(self.completed):
             mask = torch.zeros([self.model.get_num_gaussians], dtype=torch.bool, device=self.settings.device)
@@ -25,7 +26,7 @@ class Add_Edit(EditCommand):
             self.trainer.prune_points(mask)
 
     def execute(self, payload):
-        self.num_points = payload['num_points']
+        self.num_points = payload['numPoints']
         self.dist_type = payload['distribution']
 
         if(self.dist_type == "uniform"):

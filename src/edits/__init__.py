@@ -4,10 +4,10 @@ import pkgutil
 import importlib
 import inspect
 
-def import_and_read_keys():
+def import_edits():
     keys = {}
     package = importlib.import_module("edits")
-    for loader, name, is_pkg in pkgutil.walk_packages(package.__path__):
+    for _, name, _ in pkgutil.walk_packages(package.__path__):
         full_module_name = f"{'edits'}.{name}"
         module = importlib.import_module(full_module_name)
         for name, obj in inspect.getmembers(module, inspect.isclass):
@@ -16,12 +16,14 @@ def import_and_read_keys():
                 print(full_module_name)
                 try:
                     key_value = obj.key
-                    keys[name] = key_value
+                    keys[key_value] = obj
                 except AttributeError:
-                    print(f"Class {name} in module {module.__name__} does not have a 'key' attribute.")
+                    pass
     return keys
 
 class EditCommand():
+    key : str = ""
+    use_selection_mask : bool = False
     
     def __init__(self, model, renderer, dataset, trainer, settings):
         self.model = model

@@ -12,7 +12,7 @@ import torch
 from dataset.cameras import cam_from_gfx
 import simplejpeg
 from threading import Lock
-from edits import import_and_read_keys
+from edits import import_edits, EditCommand
 
 class Renderer():
     def __init__(self, model, settings, offscreen=True, server_controller=None):
@@ -28,6 +28,8 @@ class Renderer():
         self.renderer_enabled = True
         self.editor_enabled = False
         self.edit_selected = True
+        self.use_selection_mask = False
+        self.selection_inverted = False
         self.selection_mask = None
 
         self.resolution = [600, 480]
@@ -69,6 +71,9 @@ class Renderer():
                 'editorButtonClick', 
                 self.handle_editor_button_clicked)
             self.server_controller.subscribe_to_messages(
+                'editorSelectionInverted', 
+                self.handle_editor_selection_inverted)
+            self.server_controller.subscribe_to_messages(
                 'processEdit', 
                 self.handle_edit)
             
@@ -76,7 +81,8 @@ class Renderer():
         self.add_selector()
         self.activate_selector()
 
-        import_and_read_keys()
+        self.edit_keys : dict[str, EditCommand] = import_edits()
+        self.edits = []
 
     def init_renderer(self):
         with self.lock:
@@ -140,7 +146,10 @@ class Renderer():
     
     def get_selection_mask(self, points : torch.Tensor):
         if(self.selector.is_active):
-            return self.selector.points_in_bounds(points)
+            m = self.selector.points_in_bounds(points)
+            if self.selection_inverted:
+                m *= -1
+            return m
         else:
             return None
 
@@ -270,10 +279,18 @@ class Renderer():
         if(button_selected == self.edit_selected):
             self.edit_selected = ''
             self.editor_enabled = False
+            self.use_selection_mask = False
         else:
             self.edit_selected = button_selected
             self.editor_enabled = button_selected != '' 
+            if(self.editor_enabled):
+                self.use_selection_mask = self.edit_keys[self.edit_selected].use_selection_mask
         await self.send_edit_state()
+
+    async def handle_editor_selection_inverted(self, data, websocket):
+        
+        inverted = data['inverted']
+        self.selection_inverted = inverted
 
     async def send_edit_state(self):
         message = {
@@ -289,6 +306,12 @@ class Renderer():
         if self.editor_enabled:
             self.edit_selected = data['edit_type']
             edit_data = data['payload']
+            if(self.edit_selected in self.edit_keys):
+                edit_op = self.edit_keys[self.edit_selected](self.model, 
+                    self, self.server_controller.dataset, 
+                    self.server_controller.trainer, self.settings)
+                edit_op.execute(edit_data)
+                self.edits.append(edit_op)
 
     def simulate_key_down(self, key):
         ev = {
@@ -362,6 +385,7 @@ class Renderer():
                         ).reshape(t.height, t.width)
                         rgba_buffer = torch.tensor(rgba, dtype=torch.uint8, device=self.settings.device)
                         depth_buffer = torch.tensor(depth, dtype=torch.float32, device=self.settings.device)#*2 - 1
+                        self.selection_mask = self.get_selection_mask(self.model.get_xyz) if self.use_selection_mask else None
                     except:
                         print("Error in render caught, fix bug please.")
                 else:
