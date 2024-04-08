@@ -150,8 +150,13 @@ class Dataset:
 
         # Check to make sure dataset path exists
         if not os.path.exists(data["dataset_path"]):
-            await self.server_controller.send_error_message("Dataset error", 
-                f"No data found at {data['dataset_path']}")
+            await self.server_controller.broadcast({
+                    "type": "datasetError", 
+                    "data": {
+                        "header": "Dataset error",
+                        "body": f"No data found at {data['dataset_path']}"
+                    }                
+                })
             self.loading = False
             return
         
@@ -160,8 +165,13 @@ class Dataset:
             a = torch.empty([32], dtype=torch.float32, device=data['data_device'])
             del a
         except Exception as e:
-            await self.server_controller.send_error_message("Dataset error", 
-                f"Device does not exist: data_device={data['data_device']}")
+            await self.server_controller.broadcast({
+                    "type": "datasetError", 
+                    "data": {
+                        "header": "Dataset error",
+                        "body": f"Device does not exist: data_device={data['data_device']}"
+                    }                
+                })
             self.loading = False
             return
         
@@ -235,26 +245,31 @@ class Dataset:
                     #self.trainer.on_settings_update(self.settings)
                 except Exception as e:
                     # Doesn't recognize dataset still
-                    await self.server_controller.send_error_message("Dataset error", 
-                        f"Error loading dataset.")
+                    await self.server_controller.broadcast({
+                        "type": "datasetError", 
+                        "data": {
+                            "header": "Dataset error",
+                            "body": f"Error loading dataset."
+                        }                
+                    })
+                    self.loading = False
                     return
             except Exception as e:
-                await self.server_controller.send_error_message("Dataset error", 
-                    f"Error running colmap on new dataset.")
+                await self.server_controller.broadcast({
+                        "type": "datasetError", 
+                        "data": {
+                            "header": "Dataset error",
+                            "body": "Error running colmap on new dataset."
+                        }                
+                    })
+                self.loading = False
+                return
                 
         await self.server_controller.broadcast(
             {
                 "type": "datasetLoading", 
                 "data": {    
                     "loaded": True
-                }
-            }
-        )
-        await self.server_controller.broadcast(
-            {
-                "type": "dataset", 
-                "data": {    
-                    "initialized": True
                 }
             }
         )

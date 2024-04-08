@@ -33,10 +33,13 @@ class Add_Edit(EditCommand):
             samples = torch.rand([self.num_points, 3], device=self.settings.device, dtype=torch.float32)-0.5
         elif(self.dist_type == "normal"):
             samples = (torch.randn([self.num_points, 3], device=self.settings.device, dtype=torch.float32)/5).clamp(-0.5, 0.5)
-        elif(self.dist_type == "inverse_normal"):
+        elif(self.dist_type == "inverseNormal"):
             samples = (torch.randn([self.num_points, 3], device=self.settings.device, dtype=torch.float32)/5).clamp(-0.5, 0.5)
             samples[samples>0] = 0.5 - samples[samples>0]
             samples[samples<0] = -0.5 - samples[samples<0]
+        else:
+            print(f"Unsupported point addition sampling scheme: {self.dist_type}")
+            return
 
         samples = self.renderer.selector.transform_to_selector_world(samples)
 

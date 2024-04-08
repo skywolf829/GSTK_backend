@@ -20,9 +20,16 @@ class Selector():
             self.mesh = gfx.BoxHelper(size=1, thickness=4)    
     
         min_size = min(canvas.get_logical_size())
-        self.gizmo = gfx.TransformGizmo(self.mesh, min_size * self.screen_proportion)
+        self.gizmo : gfx.TransformGizmo = gfx.TransformGizmo(self.mesh, min_size * self.screen_proportion)
         self.invert_selection : bool = False
+        self.last_gizmo_transform = self.mesh.world.matrix
+        self.gizmo_updated_this_frame = False
     
+    def check_gizmo_change(self):
+        changed = ~np.array_equal(self.mesh.world.matrix, self.last_gizmo_transform)
+        self.last_gizmo_transform = self.mesh.world.matrix
+        return changed
+
     def set_active(self):
         if(self.mesh not in self.scene.children):
             self.scene.add(self.mesh)

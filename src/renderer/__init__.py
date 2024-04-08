@@ -148,7 +148,7 @@ class Renderer():
         if(self.selector.is_active):
             m = self.selector.points_in_bounds(points)
             if self.selection_inverted:
-                m *= -1
+                m = 1-m
             return m
         else:
             return None
@@ -274,7 +274,6 @@ class Renderer():
                     self.resolution[1] * self.resolution_scaling)
 
     async def handle_editor_button_clicked(self, data, websocket):
-
         button_selected = data['button_clicked']
         if(button_selected == self.edit_selected):
             self.edit_selected = ''
@@ -288,7 +287,7 @@ class Renderer():
         await self.send_edit_state()
 
     async def handle_editor_selection_inverted(self, data, websocket):
-        
+        print(data)
         inverted = data['inverted']
         self.selection_inverted = inverted
 
@@ -303,8 +302,9 @@ class Renderer():
         await self.server_controller.broadcast(message)
 
     async def handle_edit(self, data, websocket):
+        print(data)
         if self.editor_enabled:
-            self.edit_selected = data['edit_type']
+            self.edit_selected = data['editType']
             edit_data = data['payload']
             if(self.edit_selected in self.edit_keys):
                 edit_op = self.edit_keys[self.edit_selected](self.model, 
@@ -385,9 +385,12 @@ class Renderer():
                         ).reshape(t.height, t.width)
                         rgba_buffer = torch.tensor(rgba, dtype=torch.uint8, device=self.settings.device)
                         depth_buffer = torch.tensor(depth, dtype=torch.float32, device=self.settings.device)#*2 - 1
-                        self.selection_mask = self.get_selection_mask(self.model.get_xyz) if self.use_selection_mask else None
-                    except:
-                        print("Error in render caught, fix bug please.")
+
+                        self.selection_mask = self.get_selection_mask(self.model.get_xyz) \
+                            if self.use_selection_mask and self.selector.check_gizmo_change() \
+                                else None
+                    except Exception as e:
+                        print("Rendering error.")
                 else:
                     rgba_buffer = None
                     depth_buffer = None
