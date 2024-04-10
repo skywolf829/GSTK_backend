@@ -1,7 +1,7 @@
 #!/bin/bash
 
 source /miniconda/etc/profile.d/conda.sh
-conda activate GSTK_backend 
+conda activate GSTK
 
 # Run any pip commands
 # These can only be ran on the loaded image when a GPU is present.

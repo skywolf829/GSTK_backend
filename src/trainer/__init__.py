@@ -68,10 +68,13 @@ class Trainer:
                 'toggleTraining', 
                 self.handle_toggle_train)
 
+
     async def handle_toggle_train(self, data, websocket):
         if(self.training):
             self.training = False
-        elif self.dataset.loaded and self.initialized and self.model.initialized:
+        elif self.dataset.loaded and self.initialized and \
+                self.model.initialized and \
+                self.server_controller.renderer.edit_selected == '':
             self.training = True
         if(self.server_controller is not None):
             train_step_data = {
@@ -123,6 +126,7 @@ class Trainer:
             self.initialized = True
         except Exception as e:
             self.initialized = False
+            print("Error initializing trainer")
     
     def on_settings_update(self, new_settings: Settings):
         

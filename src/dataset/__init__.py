@@ -12,6 +12,7 @@
 import os
 import random
 import json
+from dataset.cameras import Camera
 from dataset.dataset_readers import sceneLoadTypeCallbacks
 from settings import Settings
 import numpy as np
@@ -19,6 +20,7 @@ from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 import torch
 from utils.system_utils import mkdir_p
 import subprocess
+from copy import deepcopy
 
 class Dataset:
     def __init__(self, settings : Settings, 
@@ -32,6 +34,8 @@ class Dataset:
         self.white_background = settings.white_background
         self.train_cameras = {}
         self.test_cameras = {}
+        self.original_train_cameras = {}
+        self.original_test_cameras = {}
         self.settings = settings
         self.server_controller = server_controller
         self.loading = False
@@ -44,7 +48,27 @@ class Dataset:
             self.server_controller.subscribe_to_messages(
                 'datasetInitialize', 
                 self.initialize_dataset)
-              
+            
+    def update_orientation(self):
+        if(self.loaded):
+            self.reorient_cameras()
+
+    def reorient_cameras(self):
+        self.train_cameras = {}
+        self.test_cameras = {}
+        print(f"Reorienting to {self.settings.orientation}")
+        for resolution_scale in self.resolution_scales:
+            self.train_cameras[resolution_scale] = []
+            self.test_cameras[resolution_scale] = []
+            for cam in self.original_train_cameras[resolution_scale]:
+                c = deepcopy(cam)
+                c.reorient(torch.tensor(self.settings.orientation, dtype=torch.float32).to(self.settings.device))
+                self.train_cameras[resolution_scale].append(c)
+            for cam in self.original_test_cameras[resolution_scale]:
+                c = deepcopy(cam)
+                c.reorient(torch.tensor(self.settings.orientation, dtype=torch.float32).to(self.settings.device))
+                self.test_cameras[resolution_scale].append(c)
+
     def load_dataset(self):
         self.loaded = False
         if os.path.exists(os.path.join(self.settings.dataset_path, "sparse")):
@@ -82,10 +106,10 @@ class Dataset:
 
         for resolution_scale in self.resolution_scales:
             print("Loading Training Cameras")
-            self.train_cameras[resolution_scale] = cameraList_from_camInfos(
+            self.original_train_cameras[resolution_scale] = cameraList_from_camInfos(
                 scene_info.train_cameras, resolution_scale, self.settings)
             print("Loading Test Cameras")
-            self.test_cameras[resolution_scale] = cameraList_from_camInfos(
+            self.original_test_cameras[resolution_scale] = cameraList_from_camInfos(
                 scene_info.test_cameras, resolution_scale, self.settings)
         self.scene_info = scene_info
 
@@ -93,7 +117,7 @@ class Dataset:
         max_pos = self.scene_info.point_cloud.points.max(axis=0)
         max_diff = np.max(max_pos - min_pos)
         self.settings.spatial_lr_scale = max_diff.flatten()[0]
-
+        self.reorient_cameras()
         self.loaded = True
         print("Dataset loaded")
 
@@ -132,7 +156,16 @@ class Dataset:
         if self.loading:
             return
         self.loading = True
-
+        if(data['dataset_path'] == ""):
+            await self.server_controller.broadcast({
+                    "type": "datasetError", 
+                    "data": {
+                        "header": "Dataset error",
+                        "body": f"Must choose a dataset."
+                    }                
+                })
+            self.loading = False
+            return
         # relative dataset path
         
         self.colmap_path = data['colmap_path']
@@ -141,7 +174,7 @@ class Dataset:
         datasets_path = os.path.abspath(os.path.join(os.path.abspath(__file__), 
                         "..", "..", "..", "data"))
         data['dataset_path'] = os.path.join(datasets_path, data['dataset_path'])
-
+        print(f"Loading from {data['dataset_path']}")
         # Just load all key data to settings
         for k in data.keys():
             # Check if the keys line up
@@ -189,6 +222,7 @@ class Dataset:
                     }
                 }
             )
+            
             self.load_dataset()
             self.server_controller.trainer.set_dataset(self)
             self.server_controller.trainer.on_settings_update(self.settings)

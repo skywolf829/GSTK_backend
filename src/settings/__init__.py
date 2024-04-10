@@ -14,6 +14,7 @@ import sys
 import os
 from typing import Any
 import torch
+import numpy as np
 
 # Global settings class
 class Settings():
@@ -47,7 +48,9 @@ class Settings():
             "densify_until_iter" : 15_000,
             "densify_grad_threshold" : 0.0002,
             "spatial_lr_scale" : 1.0,
-            "random_background" : False
+            "random_background" : False,
+
+            "orientation": np.eye(4)
         }
 
     def keys(self):

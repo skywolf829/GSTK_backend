@@ -16,8 +16,8 @@ class Selector():
         self.scene = scene
         self.mesh_type = mesh_type
         self.screen_proportion = screen_proportion
-        if(mesh_type == "cube" or mesh_type == "box"):
-            self.mesh = gfx.BoxHelper(size=1, thickness=4)    
+        self.mesh = None
+        self.create_mesh(mesh_type)
     
         min_size = min(canvas.get_logical_size())
         self.gizmo : gfx.TransformGizmo = gfx.TransformGizmo(self.mesh, min_size * self.screen_proportion)
@@ -25,6 +25,24 @@ class Selector():
         self.last_gizmo_transform = self.mesh.world.matrix
         self.gizmo_updated_this_frame = False
     
+    def reset_mesh(self):
+        self.mesh.world.matrix = np.eye(4)
+
+    def create_mesh(self, mesh_type):
+        if(self.mesh is not None and self.mesh in self.scene.children):
+            self.scene.remove(self.mesh)
+            del self.mesh
+        if(mesh_type == "cube" or mesh_type == "box"):
+            self.mesh = gfx.BoxHelper(size=1, thickness=4)    
+        if(mesh_type == "plane"):
+            self.mesh = gfx.GridHelper(size=8, thickness=4).add(gfx.AxesHelper(size=2, thickness=4))
+            
+    def set_mesh_type(self, mesh_type):
+        self.create_mesh(mesh_type)
+        self.gizmo.set_object(self.mesh)
+        self.last_gizmo_transform = self.mesh.world.matrix
+        self.gizmo_updated_this_frame = False
+
     def check_gizmo_change(self):
         changed = ~np.array_equal(self.mesh.world.matrix, self.last_gizmo_transform)
         self.last_gizmo_transform = self.mesh.world.matrix
@@ -86,3 +104,4 @@ class Selector():
     def on_resize(self, canvas):
         min_size = min(canvas.get_logical_size())
         self.gizmo._screen_size = min_size * self.screen_proportion
+

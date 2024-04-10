@@ -79,7 +79,6 @@ class Renderer():
             
         self.init_renderer()
         self.add_selector()
-        self.activate_selector()
 
         self.edit_keys : dict[str, EditCommand] = import_edits()
         self.edits = []
@@ -105,7 +104,7 @@ class Renderer():
 
             self.scene = gfx.Scene()        
             #self.scene.add(gfx.Background(None, gfx.BackgroundMaterial("#000")))
-
+            self.scene.add(gfx.AxesHelper(size=1, thickness=4))
             #self.camera.show_object(self.scene)
 
             self.canvas.request_draw(self.draw)
@@ -136,6 +135,14 @@ class Renderer():
         self.scene.add(self.gizmo)
         self.scene.add(gfx.AmbientLight())
         self.camera.show_object(self.scene)
+
+    def add_scene_item(self, item):
+        if(self.item not in self.scene.children):
+            self.scene.add(item)
+
+    def remove_scene_item(self, item):
+        if(self.item in self.scene.children):
+            self.scene.remove(item)
 
     def draw(self):
         self.viewport.render(self.scene, self.camera)
@@ -279,15 +286,20 @@ class Renderer():
             self.edit_selected = ''
             self.editor_enabled = False
             self.use_selection_mask = False
+            self.deactivate_selector()
         else:
+            self.server_controller.trainer.training = False
             self.edit_selected = button_selected
             self.editor_enabled = button_selected != '' 
             if(self.editor_enabled):
                 self.use_selection_mask = self.edit_keys[self.edit_selected].use_selection_mask
+                if data['uses_selector']:
+                    self.selector.set_mesh_type(data['selector_type'])
+                    self.activate_selector()
+                
         await self.send_edit_state()
 
     async def handle_editor_selection_inverted(self, data, websocket):
-        print(data)
         inverted = data['inverted']
         self.selection_inverted = inverted
 
@@ -302,7 +314,6 @@ class Renderer():
         await self.server_controller.broadcast(message)
 
     async def handle_edit(self, data, websocket):
-        print(data)
         if self.editor_enabled:
             self.edit_selected = data['editType']
             edit_data = data['payload']

@@ -61,6 +61,12 @@ class Camera(nn.Module):
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         self.camera_center = self.world_view_transform.inverse()[3, :3]
 
+    def reorient(self, t):
+        with torch.no_grad():
+            self.world_view_transform @= t
+            self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
+            self.camera_center = self.world_view_transform.inverse()[3, :3]
+
 class MiniCam:
     def __init__(self, 
                  width, height, 

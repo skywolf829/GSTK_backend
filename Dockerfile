@@ -27,7 +27,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 WORKDIR /app
 
 # Create a Conda environment
-RUN conda env create -f env.yml
+RUN conda env create -f env_cuda121.yml
 
 # Activate the environment and install any additional packages with pip or conda as needed
 RUN echo "source activate GSTK_backend" > ~/.bashrc
@@ -36,4 +36,4 @@ RUN echo "source activate GSTK_backend" > ~/.bashrc
 ENTRYPOINT ["entrypoint.sh"]
 
 # Command to run your application
-CMD ["python", "src/backend_web.py"]
+CMD ["python", "src/backend.py"]
